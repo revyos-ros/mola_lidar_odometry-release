@@ -1,0 +1,8 @@
+ros-jazzy-mola-lidar-odometry (0.3.0-1bookworm) bookworm; urgency=high
+
+  * First public release
+  * Contributors: Jose Luis Blanco-Claraco
+
+ -- Jose-Luis Blanco-Claraco <joseluisblancoc@gmail.com>  Tue, 13 Aug 2024 22:00:00 -0000
+
+
