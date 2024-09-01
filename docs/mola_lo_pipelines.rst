@@ -108,6 +108,7 @@ Unless said otherwise, all variables are valid for all the pipelines described a
    `mola-cli launch file <https://github.com/MOLAorg/mola_lidar_odometry/tree/develop/mola-cli-launchs>`_.
    Those variables are documented :ref:`here <mola-gui-apps-common-env-vars>`.
 
+.. _mola_lo_pipeline_sensor_inputs:
 
 Sensor inputs
 ^^^^^^^^^^^^^
@@ -159,6 +160,9 @@ General options
   multisession mapping or localization-only mode.
 
 - ``MOLA_MIN_XYZ_BETWEEN_MAP_UPDATES`` (Default: a heuristic formula, see YAML file): Minimum distance in meters between updates to
+  the local map.
+
+- ``MOLA_MIN_ROT_BETWEEN_MAP_UPDATES`` (In degrees. Default: a heuristic formula, see YAML file): Minimum angle in degrees between updates to
   the local map.
 
 - ``MOLA_MINIMUM_ICP_QUALITY`` (Default: ``0.25``): Minimum quality (from the ``mpcp_icp`` quality evaluators), in the range [0,1], to
@@ -217,6 +221,7 @@ Motion model
 ^^^^^^^^^^^^^^^^^^^^^^
 A constant velocity motion model is used by default, provided by the ``mola_navstate_fuse`` module.
 
+- ``MOLA_MAX_TIME_TO_USE_VELOCITY_MODEL`` (Default: 0.75 s): Maximum time between LiDAR frames to use the velocity model. Larger delays will cause using the latest vehicle pose as initial guess.
 - ``MOLA_NAVSTATE_SIGMA_RANDOM_WALK_LINACC`` (Default: 1.0 m/s²): Linear acceleration standard deviation.
 - ``MOLA_NAVSTATE_SIGMA_RANDOM_WALK_ANGACC`` (Default: 10.0 rad/s²): Angular acceleration standard deviation.
 
