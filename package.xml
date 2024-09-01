@@ -5,7 +5,7 @@
 -->
 <package format="3">
   <name>mola_lidar_odometry</name>
-  <version>0.3.1</version>
+  <version>0.3.3</version>
   <description>LIDAR odometry system based on MOLA and MRPT components</description>
 
   <maintainer email="joseluisblancoc@gmail.com">Jose-Luis Blanco-Claraco</maintainer>
@@ -19,8 +19,10 @@
   <depend>mola_kernel</depend>
   <depend>mp2p_icp</depend>
   <depend>mola_navstate_fuse</depend>
-  <depend>mrpt2</depend>
   <depend>mola_pose_list</depend>
+
+  <depend>mrpt_libtclap</depend>
+  <depend>mrpt_libmaps</depend>
 
   <!-- dataset input sources (all are actually optional) -->
   <depend>mola_input_kitti_dataset</depend>
