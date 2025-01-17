@@ -2,6 +2,57 @@
 Changelog for package mola_lidar_odometry
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.5.4 (2025-01-16)
+------------------
+* Add a debug helper env var MOLA_BRIDGE_ROS2_EXPORT_TO_RAWLOG_FILE
+* Do not reset the state estimator on a bad ICP, allowing merging from other sensors or extrapolating.
+* Docs: add missing ros2 launch args
+* More ROS2 launch arguments
+* Contributors: Jose Luis Blanco-Claraco
+
+0.5.3 (2025-01-15)
+------------------
+* FIX: mola_state_estimator_simple must be available as a build dep too for easier usage of mola-lo-cli
+* Contributors: Jose Luis Blanco-Claraco
+
+0.5.2 (2025-01-11)
+------------------
+* Merge pull request #11 from MOLAorg/10-bad-first-icp-re-starting-from-scratch-with-a-new-local-map
+  Fix NaN pointcloud radius in doInitializeEstimatedMaxSensorRange()
+* Unit tests: add test run against MulRan dataset fragment (Lidar+IMU)
+* cli: fix name of example pipeline file when --help invoked
+* unit tests: fix wrong usage of state estimator yaml file
+* mola-lo-gui-mulran: show IMU & GPS data in GUI
+* Define a sensible value for maxRange
+* Fix cmake warning when built w/o mola_state_estimation_simple sourced in the env
+* Contributors: Jose Luis Blanco-Claraco
+
+0.5.1 (2025-01-07)
+------------------
+* mola-lidar-odometry-cli: add flags to select the state estimation method
+* Contributors: Jose Luis Blanco-Claraco
+
+0.5.0 (2024-12-29)
+------------------
+* cmake test logic: add find_package() for state_estimation_simple
+* Merge pull request #7 from MOLAorg/wip/new-state-estimators
+  New state estimators (Merge after MOLA 1.5.0 is installable via apt)
+* Split state estimation params so each implementation has its own yaml file
+* CI: build against both, ROS testing and stable
+* Add new state estimator module in all MOLA-CLI yaml files
+* Update to new state estimation packages
+* Reorganization such as state estimator is now an independent external module
+* docs: add new ros-arg publish_localization_following_rep105
+* FIX: publish local map even when not active
+* Contributors: Jose Luis Blanco-Claraco
+
+0.4.1 (2024-12-20)
+------------------
+* ROS2 launch: add ros argument for new option publish_localization_following_rep105
+* rviz2 demo file: better orbit view
+* ROS2 config file: define env vars for all tf frames (odom, map, base_link)
+* Contributors: Jose Luis Blanco-Claraco
+
 0.4.0 (2024-12-18)
 ------------------
 * demo rviz file: fix lidar topic name
