@@ -2,6 +2,34 @@
 Changelog for package mola_lidar_odometry
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.6.2 (2025-02-13)
+------------------
+* ros2 launch: add .mm and .simplemap optional initial map arguments
+* All exhaustive docs on ros2-related mola launch YAML files with the meaning of all BridgeROS2 parameter
+* Delegate publishing georeference info to BridgeROS2
+* Contributors: Jose Luis Blanco-Claraco
+
+0.6.1 (2025-01-26)
+------------------
+* Do not re-publish the map if it does not change, e.g. in localization-only mode
+* ros2 launch file: two new arguments 'mola_lo_pipeline' and 'generate_simplemap'
+* Default 3D-LO pipeline: Add new env var 'MOLA_LOCALMAP_LAYER_NAME', useful when localizing with prebuilt maps
+* Merge pull request #12 from r-aguilera/develop
+  fix launch file params
+* fix launch file params
+* Contributors: Jose Luis Blanco-Claraco, Raúl Aguilera
+
+0.6.0 (2025-01-21)
+------------------
+* Fix: publish map on first iteration
+* Publish georeferencing frames (utm, enu) when loading a metric map with georef. info
+* ros2 lidar odometry launch: add ros argument for /tf reference_frame
+* ROS2 kitti Lidar-Odometry demo: fixed to publish correct /tf's
+* Add new frame parameters to pipeline YAML files
+* Two new parameters (publish_reference_frame, publish_vehicle_frame), to have explicit control on frame names published to both, ROS, and the MOLA state_estimator
+* ROS2 service call for load_map(): more concise error messages
+* Contributors: Jose Luis Blanco-Claraco
+
 0.5.4 (2025-01-16)
 ------------------
 * Add a debug helper env var MOLA_BRIDGE_ROS2_EXPORT_TO_RAWLOG_FILE
