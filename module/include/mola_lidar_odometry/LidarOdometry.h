@@ -206,7 +206,7 @@ public:
 
       /** Publish updated map via mola::MapSourceBase once every N frames
              */
-      uint32_t publish_map_updates_every_n = 10;
+      uint32_t publish_map_updates_every_n = 5;
 
       /** If non-empty, the local map will be loaded from the given `*.mm`
              * file instead of generating it from scratch.
@@ -402,6 +402,12 @@ public:
     uint32_t max_worker_thread_queue_before_drop = 500;
 
     uint32_t gnss_queue_max_size = 100;
+
+    /** When publishing pose updates, the reference frame for both, estimated robot poses, and the local map.*/
+    std::string publish_reference_frame = "odom";
+
+    /** When publishing pose updates, the vehicle frame name.*/
+    std::string publish_vehicle_frame = "base_link";
   };
 
   /** Algorithm parameters */
@@ -487,9 +493,9 @@ protected:
 #endif
   void onExposeParameters();  // called after initialization
 
-private:
-  const std::string NAVSTATE_LIODOM_FRAME = "liodom";
+  void publishMetricMapGeoreferencingData();
 
+private:
   struct ICP_Input
   {
     using Ptr = std::shared_ptr<ICP_Input>;
@@ -575,10 +581,17 @@ private:
 
     /// See check_for_removal_every_n
     uint32_t localmap_check_removal_counter = 0;
-    uint32_t localmap_advertise_updates_counter = 0;
+    uint32_t localmap_advertise_updates_counter = std::numeric_limits<uint32_t>::max();
 
     /// To update the map in the viz only if really needed
     bool local_map_needs_viz_update = true;
+    bool local_map_needs_publish = true;
+
+    void mark_local_map_as_updated()
+    {
+      local_map_needs_viz_update = true;
+      local_map_needs_publish = true;
+    }
 
     /// To handle post-re-localization. >0 means we are "recovering" from a request to re-localize:
     uint32_t step_counter_post_relocalization = 0;
