@@ -27,7 +27,8 @@ runs **MOLA-LO** live on point clouds received from a ROS 2 topic, **demonstrati
          # Usage without sensor /tf:
          ros2 launch mola_lidar_odometry ros2-lidar-odometry.launch.py \
             lidar_topic_name:=ouster/points \
-            ignore_lidar_pose_from_tf:=True
+            ignore_lidar_pose_from_tf:=True \
+            publish_localization_following_rep105:=False
 
    .. tab-item:: Robot with NS
       :selected:
@@ -76,11 +77,57 @@ runs **MOLA-LO** live on point clouds received from a ROS 2 topic, **demonstrati
                   Whether to open MolaViz GUI interface for watching live mapping and control UI
                   (default: 'True')
 
+               'publish_localization_following_rep105':
+                  Whether to publish localization TFs in between map->odom (true) or directly map->base_link (false)
+                  (default: 'True')
+
+               'start_mapping_enabled':
+                  Whether MOLA-LO should start with map update enabled (true), or in localization-only mode (false)
+                  (default: 'True')
+
+               'start_active':
+                  Whether MOLA-LO should start active, that is, processing incoming sensor data (true), or ignoring them (false)
+                  (default: 'True')
+
+               'mola_lo_reference_frame':
+                  The /tf frame name to be used for MOLA-LO localization updates
+                  (default: 'map')
+
+               'mola_lo_pipeline':
+                  The LiDAR-Odometry pipeline configuration YAML file defining the LO system. Absolute path, or relative to 'mola-cli-launchs/lidar_odometry_ros2.yaml'. Default is the 'lidar3d-default.yaml' system described in the IJRR 2025 paper.
+                  (default: '../pipelines/lidar3d-default.yaml')
+
+               'generate_simplemap':
+                  Whether to create a '.simplemap', useful for map post-processing. Refer to online tutorials.
+                  (default: 'False')
+
+               'mola_initial_map_mm_file':
+                  Can be used to provide a metric map '.mm' file to be loaded as initial map. Refer to online tutorials.
+                  (default: '""')
+
+               'mola_initial_map_sm_file':
+                  Can be used to provide a keyframes map '.simplemap' file to be loaded as initial map. Refer to online tutorials.
+                  (default: '""')
+
+               'mola_footprint_to_base_link_tf':
+                  Can be used to define a custom transformation between base_footprint and base_link. The coordinates are [x, y, z, yaw_deg, pitch_deg, roll_deg].
+                  (default: '[0, 0, 0, 0, 0, 0]')
+
+               'enforce_planar_motion':
+                  Whether to enforce z, pitch, and roll to be zero.
+                  (default: 'False')
+
+               'use_state_estimator':
+                  If false, the basic state estimator 'mola::state_estimation_simple::StateEstimationSimple' will be used. If true, 'mola::state_estimation_smoother::StateEstimationSmoother' is used instead.
+                  (default: 'False')
+
+               'state_estimator_config_yaml':
+                  A YAML file with settings for the state estimator. Absolute path or relative to 'mola-cli-launchs/lidar_odometry_ros2.yaml'
+                  (default: PythonExpr(''../state-estimator-params/state-estimation-smoother.yaml' if ' + LaunchConfig('use_state_estimator') + ' else '../state-estimator-params/state-estimation-simple.yaml''))
+
                'use_rviz':
                   Whether to launch RViz2 with default lidar-odometry.rviz configuration
                   (default: 'True')
-
-
 
 
 .. _mola_lo_ros_mola-cli-env-vars:
@@ -97,7 +144,11 @@ runs **MOLA-LO** live on point clouds received from a ROS 2 topic, **demonstrati
 
     Environment variables:
 
-    - ``MOLA_TF_BASE_FOOTPRINT`` (Default: ``"base_link"``): The robot reference frame id in ``/tf``. Used to get sensor poses with respect to the vehicle.
+    - ``MOLA_TF_BASE_LINK`` (Default: ``"base_link"``): The robot reference frame id in ``/tf``. Used to get sensor poses with respect to the vehicle.
+
+    - ``MOLA_TF_FOOTPRINT_LINK`` (Default: ``base_footprint``): If not empty, the node will broadcast a static /tf from base_footprint to base_link with the TF base_footprint_to_base_link_tf at start up.
+
+    - ``MOLA_TF_FOOTPRINT_TO_BASE_LINK`` (Default: ``'[0, 0, 0, 0, 0, 0]'``): [x, y, z, yaw_deg, pitch_deg, roll_deg].
 
     - ``MOLA_LIDAR_TOPIC`` (Default: ``'/ouster/points'``): The ``sensor_msgs/PointCloud2`` topic with raw LiDAR data (mandatory).
 

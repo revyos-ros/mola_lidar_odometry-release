@@ -2,6 +2,110 @@
 Changelog for package mola_lidar_odometry
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.7.0 (2025-02-22)
+------------------
+* Implement new mola_kernel diagnostics API
+* Ensure map is published after ROS2 bridge is already listening (FIXES: potential loss of map publication if MM map is given via env var)
+* FIX: Proper configurable dropped frames mechanism and stats
+* FIX: Update GUI, publish maps, correctly independently of whether MolaGUI is enabled
+* launch: fix localization source name
+* FIX: Do not ever reset the map when in localization mode
+* Fix: refresh GUI with initial map
+* Allow dropping LiDAR frames in too slow for real-time, but not any other observation type
+* FIX: ensure georef metadata is published when map_load service is called
+* rename kitti ros2 demo file to unclutter ros2 launch autocompletion
+* Add ros launch argument 'use_state_estimator'
+* FIX: publish georeferencing metadata at start up
+* Add ROS2 launch arguments to select an state_estimator method
+* update citation
+* Add more params to smoother state estimation default YAML file
+* Add env variable MOLA_STATE_ESTIMATOR_PUBLISH_RATE to control filtered pose update rate
+* Add new env var MOLA_NAVSTATE_ENFORCE_PLANAR_MOTION and ros2 launch argument for it
+* Add new ros launch argument mola_footprint_to_base_link_tf
+* Fix expected pose format in yaml
+* ROS2 launch: shutdown if mvsim crashes
+* Fix parse error with default .mm and .simplemap launch arguments
+* Contributors: Jose Luis Blanco Claraco, Jose Luis Blanco-Claraco
+
+0.6.2 (2025-02-13)
+------------------
+* ros2 launch: add .mm and .simplemap optional initial map arguments
+* All exhaustive docs on ros2-related mola launch YAML files with the meaning of all BridgeROS2 parameter
+* Delegate publishing georeference info to BridgeROS2
+* Contributors: Jose Luis Blanco-Claraco
+
+0.6.1 (2025-01-26)
+------------------
+* Do not re-publish the map if it does not change, e.g. in localization-only mode
+* ros2 launch file: two new arguments 'mola_lo_pipeline' and 'generate_simplemap'
+* Default 3D-LO pipeline: Add new env var 'MOLA_LOCALMAP_LAYER_NAME', useful when localizing with prebuilt maps
+* Merge pull request #12 from r-aguilera/develop
+  fix launch file params
+* fix launch file params
+* Contributors: Jose Luis Blanco-Claraco, Raúl Aguilera
+
+0.6.0 (2025-01-21)
+------------------
+* Fix: publish map on first iteration
+* Publish georeferencing frames (utm, enu) when loading a metric map with georef. info
+* ros2 lidar odometry launch: add ros argument for /tf reference_frame
+* ROS2 kitti Lidar-Odometry demo: fixed to publish correct /tf's
+* Add new frame parameters to pipeline YAML files
+* Two new parameters (publish_reference_frame, publish_vehicle_frame), to have explicit control on frame names published to both, ROS, and the MOLA state_estimator
+* ROS2 service call for load_map(): more concise error messages
+* Contributors: Jose Luis Blanco-Claraco
+
+0.5.4 (2025-01-16)
+------------------
+* Add a debug helper env var MOLA_BRIDGE_ROS2_EXPORT_TO_RAWLOG_FILE
+* Do not reset the state estimator on a bad ICP, allowing merging from other sensors or extrapolating.
+* Docs: add missing ros2 launch args
+* More ROS2 launch arguments
+* Contributors: Jose Luis Blanco-Claraco
+
+0.5.3 (2025-01-15)
+------------------
+* FIX: mola_state_estimator_simple must be available as a build dep too for easier usage of mola-lo-cli
+* Contributors: Jose Luis Blanco-Claraco
+
+0.5.2 (2025-01-11)
+------------------
+* Merge pull request #11 from MOLAorg/10-bad-first-icp-re-starting-from-scratch-with-a-new-local-map
+  Fix NaN pointcloud radius in doInitializeEstimatedMaxSensorRange()
+* Unit tests: add test run against MulRan dataset fragment (Lidar+IMU)
+* cli: fix name of example pipeline file when --help invoked
+* unit tests: fix wrong usage of state estimator yaml file
+* mola-lo-gui-mulran: show IMU & GPS data in GUI
+* Define a sensible value for maxRange
+* Fix cmake warning when built w/o mola_state_estimation_simple sourced in the env
+* Contributors: Jose Luis Blanco-Claraco
+
+0.5.1 (2025-01-07)
+------------------
+* mola-lidar-odometry-cli: add flags to select the state estimation method
+* Contributors: Jose Luis Blanco-Claraco
+
+0.5.0 (2024-12-29)
+------------------
+* cmake test logic: add find_package() for state_estimation_simple
+* Merge pull request #7 from MOLAorg/wip/new-state-estimators
+  New state estimators (Merge after MOLA 1.5.0 is installable via apt)
+* Split state estimation params so each implementation has its own yaml file
+* CI: build against both, ROS testing and stable
+* Add new state estimator module in all MOLA-CLI yaml files
+* Update to new state estimation packages
+* Reorganization such as state estimator is now an independent external module
+* docs: add new ros-arg publish_localization_following_rep105
+* FIX: publish local map even when not active
+* Contributors: Jose Luis Blanco-Claraco
+
+0.4.1 (2024-12-20)
+------------------
+* ROS2 launch: add ros argument for new option publish_localization_following_rep105
+* rviz2 demo file: better orbit view
+* ROS2 config file: define env vars for all tf frames (odom, map, base_link)
+* Contributors: Jose Luis Blanco-Claraco
+
 0.4.0 (2024-12-18)
 ------------------
 * demo rviz file: fix lidar topic name
