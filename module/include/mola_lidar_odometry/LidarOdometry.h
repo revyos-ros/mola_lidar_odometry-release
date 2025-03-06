@@ -34,12 +34,11 @@
 #include <mola_kernel/interfaces/LocalizationSourceBase.h>
 #include <mola_kernel/interfaces/MapServer.h>
 #include <mola_kernel/interfaces/MapSourceBase.h>
+#include <mola_kernel/interfaces/NavStateFilter.h>
 #include <mola_kernel/interfaces/Relocalization.h>
 #include <mola_kernel/version.h>
 
 // Other packages:
-#include <mola_navstate_fuse/NavStateFuse.h>
-#include <mola_navstate_fuse/NavStateFuseParams.h>
 #include <mola_pose_list/SearchablePoseList.h>
 
 // MP2P_ICP
@@ -67,8 +66,18 @@
 #include <string>
 #include <vector>
 
+// Fwrd decls:
+namespace nanogui
+{
+class Label;
+class CheckBox;
+}  // namespace nanogui
+
 namespace mola
 {
+template <std::size_t N, typename T>
+constexpr std::array<T, N> create_array(const T & value);
+
 /** LIDAR-inertial odometry based on ICP against a local metric map model.
  */
 class LidarOdometry : public mola::FrontEndBase,
@@ -200,7 +209,7 @@ public:
 
       /** Publish updated map via mola::MapSourceBase once every N frames
              */
-      uint32_t publish_map_updates_every_n = 10;
+      uint32_t publish_map_updates_every_n = 5;
 
       /** If non-empty, the local map will be loaded from the given `*.mm`
              * file instead of generating it from scratch.
@@ -276,8 +285,6 @@ public:
     };
 
     std::map<AlignKind, ICP_case> icp;
-
-    mola::NavStateFuseParams navstate_fuse_params;
 
     // === SIMPLEMAP GENERATION ====
     struct SimpleMapOptions
@@ -395,15 +402,24 @@ public:
 
     bool start_active = true;
 
-    uint32_t max_worker_thread_queue_before_drop = 500;
+    int32_t max_lidar_queue_before_drop = 15;
 
     uint32_t gnss_queue_max_size = 100;
+
+    /** When publishing pose updates, the reference frame for both, estimated robot poses, and the local map.*/
+    std::string publish_reference_frame = "odom";
+
+    /** When publishing pose updates, the vehicle frame name.*/
+    std::string publish_vehicle_frame = "base_link";
   };
 
   /** Algorithm parameters */
   Parameters params_;
 
   bool isBusy() const;
+
+  bool isActive() const;
+  void setActive(const bool active);
 
   /** Returns a copy of the estimated trajectory, with timestamps for each
      * lidar observation.
@@ -483,45 +499,59 @@ protected:
 #endif
   void onExposeParameters();  // called after initialization
 
-private:
-  const std::string NAVSTATE_LIODOM_FRAME = "liodom";
+  void publishMetricMapGeoreferencingData();
 
+private:
   struct ICP_Input
   {
     using Ptr = std::shared_ptr<ICP_Input>;
 
-    AlignKind align_kind = AlignKind::RegularOdometry;
+    mrpt::poses::CPose3D last_keyframe_pose;
+    std::optional<mrpt::poses::CPose3DPDFGaussianInf> prior;
     id_t global_id = mola::INVALID_ID;
     id_t local_id = mola::INVALID_ID;
+    double time_since_last_keyframe = 0;
     mp2p_icp::metric_map_t::Ptr global_pc, local_pc;
     mrpt::math::TPose3D init_guess_local_wrt_global;
     mp2p_icp::Parameters icp_params;
-    mrpt::poses::CPose3D last_keyframe_pose;
-    double time_since_last_keyframe = 0;
-
-    std::optional<mrpt::poses::CPose3DPDFGaussianInf> prior;
+    AlignKind align_kind = AlignKind::RegularOdometry;
   };
   struct ICP_Output
   {
-    double goodness = .0;
+    ICP_Output() = default;
+
     mrpt::poses::CPose3DPDFGaussian found_pose_to_wrt_from;
+    double goodness = .0;
     uint32_t icp_iterations = 0;
   };
 
   /** All variables that hold the algorithm state */
   struct MethodState
   {
+    MethodState() = default;
+
+    // ------ these flags are protected by state_flags_mtx_  ---------
     bool initialized = false;
     bool fatal_error = false;
+    bool active = true;  //!< whether to process or ignore incoming sensors
+    // ------ ^^^ end of these flags are protected ^^^^      ---------
+
+    // ------ these vars are protected by is_busy_mtx_  ---------
+    int worker_tasks_lidar = 0;
+    int worker_tasks_others = 0;
+
+    static constexpr std::size_t DROP_STATS_WINDOW_LENGHT = 128;
+    std::array<bool, DROP_STATS_WINDOW_LENGHT> drop_frames_stats_good =
+      create_array<DROP_STATS_WINDOW_LENGHT>(true);
+    std::array<bool, DROP_STATS_WINDOW_LENGHT> drop_frames_stats_dropped =
+      create_array<DROP_STATS_WINDOW_LENGHT>(false);
+    std::size_t drop_frames_stats_next_index = 0;
+    // ------ ^^^ end of these flags are protected ^^^^      ---------
+
+    // All other fields are protected by state_mtx_
 
     // will be true after the first incoming LiDAR frame and re-localization is enabled and run
     bool initial_localization_done = false;
-
-    /// if false, input observations will be just ignored.
-    /// Useful for real-time execution on robots.
-    bool active = true;
-
-    int worker_tasks = 0;
 
     mrpt::poses::CPose3DPDFGaussian last_lidar_pose;  //!< in local map
 
@@ -537,7 +567,8 @@ private:
     std::map<std::string /*label*/, mrpt::obs::CObservation::Ptr> sync_obs;
 
     // navstate_fuse to merge pose estimates, IMU, odom, estimate twist.
-    mola::NavStateFuse navstate_fuse;
+    std::shared_ptr<mola::NavStateFilter> navstate_fuse;
+
     std::optional<NavState> last_motion_model_output;
 
     /// The source of "dynamic variables" in ICP pipelines:
@@ -567,10 +598,20 @@ private:
 
     /// See check_for_removal_every_n
     uint32_t localmap_check_removal_counter = 0;
-    uint32_t localmap_advertise_updates_counter = 0;
+    uint32_t localmap_advertise_updates_counter = std::numeric_limits<uint32_t>::max();
 
     /// To update the map in the viz only if really needed
     bool local_map_needs_viz_update = true;
+    bool local_map_needs_publish = true;
+    bool local_map_georef_needs_publish = true;
+
+    void mark_local_map_as_updated()
+    {
+      local_map_needs_viz_update = true;
+      local_map_needs_publish = true;
+    }
+
+    void mark_local_map_georef_as_updated() { local_map_georef_needs_publish = true; }
 
     /// To handle post-re-localization. >0 means we are "recovering" from a request to re-localize:
     uint32_t step_counter_post_relocalization = 0;
@@ -589,7 +630,8 @@ private:
     // 2) Using a dataset source that supports lazy-load:
     mutable std::map<mrpt::Clock::time_point, mrpt::obs::CSensoryFrame::Ptr>
       past_simplemaps_observations;
-  };
+
+  };  // end of MethodState
 
   /** The worker thread pool with 1 thread for processing incomming
      * IMU or LIDAR observations*/
@@ -612,6 +654,7 @@ private:
     nanogui::Label * lbSensorRange = nullptr;
     nanogui::Label * lbTime = nullptr;
     nanogui::Label * lbSpeed = nullptr;
+    nanogui::Label * lbLidarQueue = nullptr;
     nanogui::CheckBox * cbActive = nullptr;
     nanogui::CheckBox * cbMapping = nullptr;
     nanogui::CheckBox * cbSaveSimplemap = nullptr;
@@ -624,6 +667,7 @@ private:
 
   bool destructor_called_ = false;
   mutable std::mutex is_busy_mtx_;
+  mutable std::mutex state_flags_mtx_;
   mutable std::recursive_mutex state_mtx_;
   mutable std::mutex state_trajectory_mtx_;
   mutable std::recursive_mutex state_simplemap_mtx_;
@@ -631,6 +675,12 @@ private:
   /// The list of pending tasks from enqueue_request():
   std::vector<std::function<void()>> requests_;
   std::mutex requests_mtx_;
+
+  /// Must be called from a scope with state_flags_mtx_ already adquired!
+  void addDropStats(bool frame_is_dropped);
+
+  /// Returns the ratio [0,1] of lidar frames dropped due to slow processing in the last few seconds.
+  double getDropStats() const;
 
   // Process requests_(), at the spinOnce() rate.
   void processPendingUserRequests();
@@ -673,6 +723,23 @@ private:
   void unloadPastSimplemapObservations(const size_t maxSizeUnloadQueue) const;
 
   void handleUnloadSinglePastObservation(CObservation::Ptr & o) const;
+
+  void onPublishDiagnostics();
 };
 
+namespace detail
+{
+template <typename T, std::size_t... Is>
+constexpr std::array<T, sizeof...(Is)> create_array(T value, std::index_sequence<Is...>)
+{
+  // cast Is to void to remove the warning: unused value
+  return {{(static_cast<void>(Is), value)...}};
+}
+}  // namespace detail
+
+template <std::size_t N, typename T>
+constexpr std::array<T, N> create_array(const T & value)
+{
+  return detail::create_array(value, std::make_index_sequence<N>());
+}
 }  // namespace mola
