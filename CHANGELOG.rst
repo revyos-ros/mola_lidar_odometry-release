@@ -2,6 +2,59 @@
 Changelog for package mola_lidar_odometry
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+0.8.0 (2025-06-06)
+------------------
+* Publish mp2p_icp metric map metadata, if existing in loaded maps.
+* state estimation config yaml file: expose IMU sensor name env var
+* Update mola_lo_pipelines.rst: explicitly show an example of using the NDT pipeline
+* ros2 launch: add new argument to control the scan validity filter based on minimum point count (now, enabled by default)
+* Update broken link to ROS Index
+* mola-lidar-odometry-cli: now also forward raw sensor data to state estimator
+* Fix build against mola <1.8.0
+* Docs: better explain existing variables to override sensor poses
+* gui option: implement show as orthographic camera
+* Contributors: Jose Luis Blanco-Claraco
+
+0.7.3 (2025-05-25)
+------------------
+* feature: new threshold to discard state estimation as invalid if uncertainty is too high
+* Fixed unit tests in CI
+* Prepare GUI for ortho camera option
+* progress implementing init pitch/roll from IMU
+* pipelines YAML files reformated with RedHat YAML formatter
+* Update env var name to explicitly mention LO: MOLA_LO_INITIAL_LOCALIZATION_METHOD
+* docs: on initial localization methods
+* ROS2 launch: Add new `mola_state_estimator_reference_frame` argument.
+  It should be used together with `mola_lo_reference_frame` to use an alternative reference map TF frame than the default `map`.
+* Fix wrong namespace in class name (it worked anyway because of a fall-back mechanism using unqualified names)
+* Expose env vars to change the reference frame_id for smoother (MOLA_TF_MAP)
+* fix: potential missing publication of updated poses if there is no map subscriber
+* lidar 3d pipeline: add rendering options for local map
+* Contributors: Jose Luis Blanco-Claraco
+
+0.7.2 (2025-04-23)
+------------------
+* better integration of clang-tidy, colcon_defaults, and clangd with vscode
+* Expose two more env vars: MOLA_MAP_CLOUD_DECIMATION, MOLA_ICP_CLOUD_DECIMATION
+* FIX: also initial pose for localmap
+* BUGFIX: Initial twist was wrong for custom initial poses
+* Contributors: Jose Luis Blanco-Claraco
+
+0.7.1 (2025-03-15)
+------------------
+* FIX: Handle correctly the case of input scans with non-normal numbers
+* docs: format of ros2 launch argument
+* FIX: reset map to start again might lead to divergence; Add new 'reset_state' command via MOLA dynamic variables
+* Force requiring valid poses for IMU and GNSS inputs
+* Refactor implementation source into several smaller files
+* FIX: mola-lo didn't exit due to waiting ICP queue if fed faster than ICP processing
+* FIX: mola-lo-gui apps may show duplicated UI controls in particular circumstances
+* Drop frames warning message now tells the exact drop ratio
+* Initial localization method is now loadable from yaml or ros2 launch file
+* MOLA-LO no longer subscribes to wheels odometry. That is now delegated directly to state estimation modules.
+* Add new ROS2 launch argument: `forward_ros_tf_odom_to_mola`
+* Contributors: Jose Luis Blanco-Claraco
+
 0.7.0 (2025-02-22)
 ------------------
 * Implement new mola_kernel diagnostics API

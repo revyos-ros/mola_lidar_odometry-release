@@ -1,7 +1,7 @@
 // -----------------------------------------------------------------------------
 //   A Modular Optimization framework for Localization and mApping  (MOLA)
 //
-// Copyright (C) 2018-2024 Jose Luis Blanco, University of Almeria
+// Copyright (C) 2018-2025 Jose Luis Blanco, University of Almeria
 // Licensed under the GNU GPL v3.
 //
 // This file is part of MOLA.
@@ -50,14 +50,16 @@
 // MRPT
 #include <mrpt/core/WorkerThreadsPool.h>
 #include <mrpt/maps/CSimpleMap.h>
-#include <mrpt/maps/CSimplePointsMap.h>
 #include <mrpt/obs/obs_frwds.h>
 #include <mrpt/opengl/CSetOfLines.h>
 #include <mrpt/opengl/CSetOfObjects.h>
 #include <mrpt/poses/CPose3DInterpolator.h>
-#include <mrpt/serialization/CSerializable.h>
+#include <mrpt/typemeta/TEnumType.h>
 
 // STD:
+#include <array>
+#include <cstdint>
+#include <cstdlib>
 #include <fstream>
 #include <limits>
 #include <map>
@@ -78,6 +80,16 @@ namespace mola
 template <std::size_t N, typename T>
 constexpr std::array<T, N> create_array(const T & value);
 
+enum class InitLocalization : uint8_t
+{
+  /// Initialize around a given SE(3) pose with covariance:
+  FixedPose = 0,
+  /// Initialize from the external state estimator, with an optional maximum uncertainty threshold
+  FromStateEstimator,
+  /// Initialize pitch & roll from a short IMU sequence, assuming sensor is roughly stationary at startup
+  PitchAndRollFromIMU,
+};
+
 /** LIDAR-inertial odometry based on ICP against a local metric map model.
  */
 class LidarOdometry : public mola::FrontEndBase,
@@ -90,7 +102,7 @@ class LidarOdometry : public mola::FrontEndBase,
 
 public:
   LidarOdometry();
-  ~LidarOdometry();
+  ~LidarOdometry() override;
 
   /** @name Main API
      * @{ */
@@ -111,13 +123,6 @@ public:
     NoMotionModel
   };
 
-  enum class InitLocalization : uint8_t
-  {
-    FixedPose = 0,
-    FromGNSS_Static,
-    FromGNSS_Motion,
-  };
-
   struct Parameters : public mp2p_icp::Parameterizable
   {
     /** List of sensor labels or regex's to be matched to input observations
@@ -129,11 +134,6 @@ public:
          *  to be used as raw IMU observations.
          */
     std::optional<std::regex> imu_sensor_label;
-
-    /** Sensor labels or regex to be matched to input observations
-         *  to be used as wheel odometry observations.
-         */
-    std::optional<std::regex> wheel_odometry_sensor_label;
 
     /** Sensor labels or regex to be matched to input observations
          *  to be used as GNSS (GPS) observations.
@@ -245,6 +245,7 @@ public:
       bool show_console_messages = true;
       bool camera_follows_vehicle = true;
       bool camera_rotates_with_vehicle = false;
+      bool camera_orthographic = false;
 
       /** If not empty, an optional 3D model (.DAE, etc) to load for
              * visualizing the robot/vehicle pose */
@@ -373,7 +374,6 @@ public:
     {
       InitialLocalizationOptions() = default;
 
-      bool enabled = false;
       InitLocalization method = InitLocalization::FixedPose;
 
       mrpt::math::TPose3D fixed_initial_pose;
@@ -381,6 +381,12 @@ public:
 
       // Right after a re-localization, do not update the pose state estimator for a few iterations
       uint32_t additional_uncertainty_after_reloc_how_many_timesteps = 5;
+
+      /// Number of IMU (accelerometer) samples to accumulate while stationary to estimate Pitch & Roll:
+      uint32_t pitch_and_roll_from_imu_sample_count = 50;
+
+      /// Maximum time span (in seconds) for the "pitch_and_roll_from_imu_sample_count" IMU samples:
+      double pitch_and_roll_from_imu_max_age = 0.75;
 
       void initialize(const Yaml & c);
     };
@@ -405,6 +411,9 @@ public:
     int32_t max_lidar_queue_before_drop = 15;
 
     uint32_t gnss_queue_max_size = 100;
+
+    ///  Minimum inverse covariance in (X,Y,Z) for a valid motion model
+    double min_motion_model_xyz_cov_inv = 1.0;
 
     /** When publishing pose updates, the reference frame for both, estimated robot poses, and the local map.*/
     std::string publish_reference_frame = "odom";
@@ -525,6 +534,25 @@ private:
     uint32_t icp_iterations = 0;
   };
 
+  class ImuAverager
+  {
+  public:
+    ImuAverager(const std::size_t required_samples, const double max_samples_age)
+    : required_samples_(required_samples), max_samples_age_(max_samples_age)
+    {
+      ASSERT_(required_samples > 0);
+    }
+
+    void add(const std::shared_ptr<const mrpt::obs::CObservationIMU> & obs);
+    [[nodiscard]] bool isReady() const;
+    [[nodiscard]] std::tuple<double, double> getPitchRoll() const;
+
+  private:
+    std::size_t required_samples_;
+    double max_samples_age_;
+    std::map<double, std::shared_ptr<const mrpt::obs::CObservationIMU>> samples_;
+  };
+
   /** All variables that hold the algorithm state */
   struct MethodState
   {
@@ -552,6 +580,8 @@ private:
 
     // will be true after the first incoming LiDAR frame and re-localization is enabled and run
     bool initial_localization_done = false;
+
+    std::optional<ImuAverager> imu_averager;  //!< Used for pitch & roll initialization
 
     mrpt::poses::CPose3DPDFGaussian last_lidar_pose;  //!< in local map
 
@@ -642,6 +672,7 @@ private:
   const MethodState & state() const { return state_; }
   MethodState stateCopy() const { return state_; }
 
+  // Accessing this struct in gui_ requires adquiring state_gui_mtx_
   struct StateUI
   {
     StateUI() = default;
@@ -660,6 +691,7 @@ private:
     nanogui::CheckBox * cbSaveSimplemap = nullptr;
   };
 
+  // Accessing this struct in gui_ requires adquiring state_gui_mtx_
   StateUI gui_;
 
   /// The configuration used in the last call to initialize()
@@ -671,6 +703,7 @@ private:
   mutable std::recursive_mutex state_mtx_;
   mutable std::mutex state_trajectory_mtx_;
   mutable std::recursive_mutex state_simplemap_mtx_;
+  mutable std::mutex state_gui_mtx_;
 
   /// The list of pending tasks from enqueue_request():
   std::vector<std::function<void()>> requests_;
@@ -686,13 +719,10 @@ private:
   void processPendingUserRequests();
 
   void onLidar(const CObservation::Ptr & o);
-  void onLidarImpl(const CObservation::Ptr & obs);
+  void processLidarScan(const CObservation::Ptr & obs);
 
   void onIMU(const CObservation::Ptr & o);
   void onIMUImpl(const CObservation::Ptr & o);
-
-  void onWheelOdometry(const CObservation::Ptr & o);
-  void onWheelOdometryImpl(const CObservation::Ptr & o);
 
   void onGPS(const CObservation::Ptr & o);
   void onGPSImpl(const CObservation::Ptr & o);
@@ -725,6 +755,7 @@ private:
   void handleUnloadSinglePastObservation(CObservation::Ptr & o) const;
 
   void onPublishDiagnostics();
+  void handleInitialLocalization();
 };
 
 namespace detail
@@ -743,3 +774,9 @@ constexpr std::array<T, N> create_array(const T & value)
   return detail::create_array(value, std::make_index_sequence<N>());
 }
 }  // namespace mola
+
+MRPT_ENUM_TYPE_BEGIN_NAMESPACE(mola, mola::InitLocalization)
+MRPT_FILL_ENUM(InitLocalization::FixedPose);
+MRPT_FILL_ENUM(InitLocalization::FromStateEstimator);
+MRPT_FILL_ENUM(InitLocalization::PitchAndRollFromIMU);
+MRPT_ENUM_TYPE_END()
