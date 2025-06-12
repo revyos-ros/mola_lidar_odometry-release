@@ -70,6 +70,11 @@ def generate_launch_description():
     mola_lo_reference_frame_env_var = SetEnvironmentVariable(
         name='MOLA_LO_PUBLISH_REF_FRAME', value=LaunchConfiguration('mola_lo_reference_frame'))
     # ~~~~~~~~~~~~
+    mola_se_reference_frame_arg = DeclareLaunchArgument(
+        "mola_state_estimator_reference_frame", default_value="map", description="The /tf frame name to be used as reference for MOLA State Estimators to publish pose updates")
+    mola_tf_map_env_var = SetEnvironmentVariable(
+        name='MOLA_TF_MAP', value=LaunchConfiguration('mola_state_estimator_reference_frame'))
+    # ~~~~~~~~~~~~
     mola_lo_pipeline_arg = DeclareLaunchArgument(
         "mola_lo_pipeline", default_value="../pipelines/lidar3d-default.yaml", description="The LiDAR-Odometry pipeline configuration YAML file defining the LO system. Absolute path, or relative to 'mola-cli-launchs/lidar_odometry_ros2.yaml'. Default is the 'lidar3d-default.yaml' system described in the IJRR 2025 paper.")
     mola_lo_pipeline_arg_env_var = SetEnvironmentVariable(
@@ -100,6 +105,16 @@ def generate_launch_description():
     enforce_planar_motion_env_var = SetEnvironmentVariable(
         name='MOLA_NAVSTATE_ENFORCE_PLANAR_MOTION', value=LaunchConfiguration('enforce_planar_motion'))
     # ~~~~~~~~~~~~
+    forward_ros_tf_odom_to_mola_arg = DeclareLaunchArgument(
+        "forward_ros_tf_odom_to_mola", default_value="False", description="Whether to import an existing /tf 'odom'->'base_link' odometry into the MOLA subsystem.")
+    forward_ros_tf_odom_to_mola_env_var = SetEnvironmentVariable(
+        name='MOLA_FORWARD_ROS_TF_ODOM_TO_MOLA', value=LaunchConfiguration('forward_ros_tf_odom_to_mola'))
+    # ~~~~~~~~~~~~
+    initial_localization_method_arg = DeclareLaunchArgument(
+        "initial_localization_method", default_value="InitLocalization::FixedPose", description="What method to use for initialization. See https://docs.mola-slam.org/latest/ros2api.html#initial-localization")
+    initial_localization_method_env_var = SetEnvironmentVariable(
+        name='MOLA_LO_INITIAL_LOCALIZATION_METHOD', value=LaunchConfiguration('initial_localization_method'))
+    # ~~~~~~~~~~~~
     use_state_estimator_arg = DeclareLaunchArgument(
         "use_state_estimator",
         default_value="False",
@@ -107,10 +122,10 @@ def generate_launch_description():
     )
     state_estimator_env_var = SetEnvironmentVariable(
         name='MOLA_STATE_ESTIMATOR', value=PythonExpression(
-            ["'mola::state_estimation_simple::StateEstimationSmoother' if ",
+            ["'mola::state_estimation_smoother::StateEstimationSmoother' if ",
              LaunchConfiguration(
                  'use_state_estimator'),
-             " else 'mola::state_estimation_smoother::StateEstimationSimple'"
+             " else 'mola::state_estimation_simple::StateEstimationSimple'"
              ]))
     localization_publish_tf_source_env_var = SetEnvironmentVariable(
         name='MOLA_LOCALIZATION_PUBLISH_TF_SOURCE',
@@ -136,6 +151,13 @@ def generate_launch_description():
         description="A YAML file with settings for the state estimator. Absolute path or relative to 'mola-cli-launchs/lidar_odometry_ros2.yaml'")
     state_estimator_config_yaml_env_var = SetEnvironmentVariable(
         name='MOLA_STATE_ESTIMATOR_YAML', value=LaunchConfiguration('state_estimator_config_yaml'))
+    # ~~~~~~~~~~~~
+    lidar_scan_validity_minimum_point_count_arg = DeclareLaunchArgument(
+        "lidar_scan_validity_minimum_point_count", default_value="100", description="Minimum number of points in each LiDAR raw scan for it to be considered valid; otherwise, it is ignored.")
+    lidar_scan_validity_minimum_point_env_var = SetEnvironmentVariable(
+        name='MOLA_OBS_VALIDITY_MIN_POINTS', value=LaunchConfiguration('lidar_scan_validity_minimum_point_count'))
+    lidar_scan_validity_enable_env_var = SetEnvironmentVariable(
+        name='MOLA_ENABLE_OBS_VALIDITY_FILTER', value='True')
     # ~~~~~~~~~~~~
 
     # Namespace (Based on Nav2's bring-up launch file!)
@@ -230,12 +252,21 @@ def generate_launch_description():
         mola_footprint_to_base_link_tf_env_var,
         enforce_planar_motion_arg,
         enforce_planar_motion_env_var,
+        forward_ros_tf_odom_to_mola_arg,
+        forward_ros_tf_odom_to_mola_env_var,
+        initial_localization_method_arg,
+        initial_localization_method_env_var,
         use_state_estimator_arg,
         state_estimator_env_var,
         state_estimator_config_yaml_arg,
         state_estimator_config_yaml_env_var,
         localization_publish_odom_source_env_var,
         localization_publish_tf_source_env_var,
+        mola_se_reference_frame_arg,
+        mola_tf_map_env_var,
+        lidar_scan_validity_minimum_point_count_arg,
+        lidar_scan_validity_minimum_point_env_var,
+        lidar_scan_validity_enable_env_var,
         use_rviz_arg,
         node_group
     ])
